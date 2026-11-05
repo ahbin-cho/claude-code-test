@@ -3,6 +3,7 @@ import { Harbor } from "./components/Harbor";
 import { LanternDetail } from "./components/LanternDetail";
 import { LanternForm } from "./components/LanternForm";
 import { Sheet } from "./components/Sheet";
+import { Sky } from "./components/Sky";
 import { demo, useHarbor } from "./hooks/useHarbor";
 
 type View = { type: "none" } | { type: "detail"; id: string } | { type: "form" };
@@ -37,9 +38,11 @@ export default function App() {
 
   return (
     <div className="scene">
+      <Sky />
       <header>
+        <p className="eyebrow">오늘 밤의 항구</p>
         <h1>기다림 항구</h1>
-        <p className="lede">돌아올 사람을 기다리는 사람들이 등불을 걸어두는 곳. 돌아올 날이 가까워질수록 불빛이 밝아져요.</p>
+        <p className="lede">돌아올 사람을 기다리며 등불을 걸어두는 곳.<br />그날이 가까워질수록 불빛이 밝아져요.</p>
         <div className="stats">
           <span><span className="dot" />지금 항구에 <b>{h.hereCount}</b>명</span>
           <span>걸린 등불 <b>{h.lanterns.length}</b>개</span>

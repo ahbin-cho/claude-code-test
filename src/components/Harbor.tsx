@@ -31,7 +31,7 @@ export function Harbor({ lanterns, me, online, pulseId, empty, onPick }: {
   return (
     <div className="harbor" ref={box}>
       <div className="pier" style={{ width }}>
-        <div className="horizon" />
+        <div className="water" />
         <div className="deck" />
         {lanterns.length === 0 && <p className="empty">{empty}</p>}
         {lanterns.map((l, i) => {
@@ -44,19 +44,22 @@ export function Harbor({ lanterns, me, online, pulseId, empty, onPick }: {
             .join(" ");
           return (
             <div key={l.user_id}>
-              <span className="reflect" style={{ left: x, opacity: 0.12 + 0.35 * glow }} />
-              <button className={cls} style={{ left: x }} onClick={() => onPick(l.user_id)} aria-label={`${titleOf(l)}, ${ddayText(n)}`}>
+              <span className="reflect" style={{ left: x, opacity: 0.1 + 0.4 * glow, animationDelay: `${-i * 0.7}s` }} />
+              <button className={cls} style={{ left: x, ["--i" as string]: i }} onClick={() => onPick(l.user_id)} aria-label={`${titleOf(l)}, ${ddayText(n)}`}>
                 <span className="label">
                   {l.who}
                   <span className="dd">{ddayText(n)}</span>
                 </span>
-                <span
-                  className="lamp"
-                  style={{
-                    opacity: 0.45 + 0.55 * glow,
-                    boxShadow: `0 0 ${8 + 28 * glow}px ${4 + 10 * glow}px rgba(242,180,90,${0.25 + 0.5 * glow})`,
-                  }}
-                />
+                <span className="swing" style={{ animationDelay: `${-i * 0.9}s` }}>
+                  <span className="cord" />
+                  <span
+                    className="lamp"
+                    style={{
+                      opacity: 0.4 + 0.6 * glow,
+                      boxShadow: `0 0 ${10 + 34 * glow}px ${3 + 12 * glow}px rgba(255,184,103,${0.18 + 0.5 * glow})`,
+                    }}
+                  />
+                </span>
                 <span className="post" />
               </button>
             </div>
