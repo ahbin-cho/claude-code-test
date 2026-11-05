@@ -1,0 +1,133 @@
+:root{
+  --sky-top:#4A4E86; --sky-low:#C99FB0; --sea:#2D3A63; --sea-deep:#1E2748;
+  --pier:#3A2F3A; --lamp:#F2B45A; --lamp-hot:#FFD99A;
+  --ink-on-sky:#FFF6E8; --muted-on-sky:#E6D6E4;
+  --sheet:#FBF5EA; --sheet-ink:#2A2740; --sheet-muted:#6E6A82; --line:#E3D9C8;
+  --accent:#B9652E; --accent-ink:#FFF8EE; --field:#FFFFFF;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --sky-top:#141A3A; --sky-low:#3C2F55; --sea:#16203F; --sea-deep:#0E152E;
+    --pier:#2A2230; --muted-on-sky:#AEB2D2;
+    --sheet:#232748; --sheet-ink:#F3E9D7; --sheet-muted:#A9ABC6; --line:#383D66;
+    --accent:#E39A55; --accent-ink:#1C1A2E; --field:#1B1F3D;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --sky-top:#141A3A; --sky-low:#3C2F55; --sea:#16203F; --sea-deep:#0E152E;
+  --pier:#2A2230; --muted-on-sky:#AEB2D2;
+  --sheet:#232748; --sheet-ink:#F3E9D7; --sheet-muted:#A9ABC6; --line:#383D66;
+  --accent:#E39A55; --accent-ink:#1C1A2E; --field:#1B1F3D;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;height:100%;overflow:hidden;
+  font-family:"Gowun Dodum","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  background:var(--sky-top);color:var(--ink-on-sky);
+}
+.scene{
+  position:relative;height:100%;display:flex;flex-direction:column;
+  background:linear-gradient(to bottom,var(--sky-top) 0%,var(--sky-low) 52%,var(--sea) 52.2%,var(--sea-deep) 100%);
+}
+header{padding:28px 24px 0;max-width:640px}
+h1{
+  font-family:"Gowun Batang",serif;font-weight:700;font-size:2.1rem;line-height:1.15;
+  margin:0;letter-spacing:-0.01em;
+}
+.lede{margin:10px 0 0;color:var(--muted-on-sky);line-height:1.6;font-size:.95rem;max-width:30em}
+.stats{display:flex;gap:16px;margin-top:14px;font-size:.88rem;color:var(--muted-on-sky)}
+.stats b{color:var(--ink-on-sky);font-weight:400}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--lamp);margin-right:6px;vertical-align:1px;box-shadow:0 0 8px var(--lamp)}
+.note{margin:10px 24px 0;font-size:.82rem;color:var(--muted-on-sky)}
+
+.harbor{position:relative;flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.harbor::-webkit-scrollbar{display:none}
+.pier{position:relative;height:100%;min-width:100%}
+.horizon{position:absolute;left:0;right:0;top:44%;height:1px;background:rgba(255,255,255,.12)}
+.deck{position:absolute;left:0;right:0;top:64%;height:10px;background:var(--pier);border-radius:2px}
+.deck::after{content:"";position:absolute;left:0;right:0;top:10px;height:6px;background:rgba(0,0,0,.25)}
+
+.lantern{
+  position:absolute;top:64%;width:76px;transform:translate(-50%,-100%);
+  background:none;border:0;padding:0;cursor:pointer;color:inherit;font:inherit;
+  display:flex;flex-direction:column;align-items:center;
+}
+.lantern:focus-visible{outline:2px solid var(--lamp-hot);outline-offset:4px;border-radius:8px}
+.lantern .label{
+  font-family:"Gowun Batang",serif;font-size:.8rem;line-height:1.25;text-align:center;
+  margin-bottom:6px;white-space:nowrap;max-width:76px;overflow:hidden;text-overflow:ellipsis;
+}
+.lantern .dd{display:block;font-family:"Gowun Dodum",sans-serif;font-size:.72rem;color:var(--muted-on-sky)}
+.lantern .lamp{
+  width:22px;height:30px;border-radius:9px 9px 7px 7px;position:relative;
+  background:var(--lamp);border:2px solid rgba(60,40,30,.55);
+}
+.lantern .lamp::before{content:"";position:absolute;left:50%;top:-8px;width:10px;height:6px;margin-left:-5px;border-radius:3px 3px 0 0;background:rgba(60,40,30,.7)}
+.lantern .post{width:3px;height:44px;background:var(--pier)}
+.lantern.here .lamp{animation:flicker 3.2s ease-in-out infinite}
+.lantern.mine .label::after{content:"나";display:inline-block;margin-left:4px;font-size:.66rem;padding:0 5px;border-radius:6px;background:var(--lamp);color:#3A2418;vertical-align:1px}
+.lantern.pulse .lamp{animation:pulse 1.2s ease-out}
+.lantern.home .lamp{background:var(--lamp-hot)}
+.reflect{
+  position:absolute;top:calc(64% + 22px);width:26px;height:70px;transform:translateX(-50%);
+  border-radius:50%;filter:blur(8px);background:var(--lamp);pointer-events:none;
+}
+@keyframes flicker{0%,100%{filter:brightness(1)}45%{filter:brightness(1.22)}55%{filter:brightness(.92)}}
+@keyframes pulse{0%{transform:scale(1)}30%{transform:scale(1.35)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){.lantern.here .lamp,.lantern.pulse .lamp{animation:none}}
+
+.empty{position:absolute;left:24px;right:24px;top:70%;color:var(--muted-on-sky);font-size:.92rem;line-height:1.6}
+
+.bar{
+  position:relative;padding:14px 24px 18px;display:flex;gap:12px;align-items:center;
+}
+.hint{font-size:.82rem;color:var(--muted-on-sky);flex:1;line-height:1.5}
+.btn{
+  font:inherit;font-size:.95rem;border:0;border-radius:14px;padding:13px 18px;cursor:pointer;
+  background:var(--lamp);color:#3A2418;white-space:nowrap;
+}
+.btn:focus-visible,.ghost:focus-visible,.chip:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:default}
+
+/* sheet */
+.veil{position:fixed;inset:0;background:rgba(10,10,30,.45);display:none;z-index:20}
+.veil.open{display:block}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:21;max-height:88%;overflow:auto;
+  background:var(--sheet);color:var(--sheet-ink);border-radius:22px 22px 0 0;
+  padding:22px 24px calc(24px + env(safe-area-inset-bottom,0px));
+  transform:translateY(105%);transition:transform .28s ease;
+  max-width:560px;margin:0 auto;
+}
+.sheet.open{transform:none}
+@media (prefers-reduced-motion: reduce){.sheet{transition:none}}
+.sheet h2{font-family:"Gowun Batang",serif;font-size:1.45rem;margin:0 0 4px;line-height:1.3}
+.sheet .kind{color:var(--sheet-muted);font-size:.88rem}
+.big{font-family:"Gowun Batang",serif;font-size:3rem;line-height:1;margin:18px 0 6px}
+.prog{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:10px 0 6px}
+.prog i{display:block;height:100%;background:var(--accent)}
+.small{font-size:.86rem;color:var(--sheet-muted);line-height:1.55}
+blockquote{margin:18px 0;padding:0 0 0 14px;border-left:3px solid var(--accent);font-family:"Gowun Batang",serif;font-size:1.05rem;line-height:1.7}
+.row{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap}
+.ghost{font:inherit;font-size:.92rem;background:none;border:1px solid var(--line);color:var(--sheet-ink);border-radius:12px;padding:11px 14px;cursor:pointer}
+.sheet .btn{background:var(--accent);color:var(--accent-ink)}
+label,.label-text{display:block;font-size:.88rem;color:var(--sheet-muted);margin:16px 0 6px}
+input,textarea{
+  width:100%;font:inherit;font-size:1rem;color:var(--sheet-ink);background:var(--field);
+  border:1px solid var(--line);border-radius:12px;padding:11px 12px;
+}
+textarea{resize:none;height:76px;line-height:1.5}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--field);color:var(--sheet-ink);border-radius:20px;padding:8px 13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.err{color:#C2412D;font-size:.85rem;margin-top:10px;min-height:1.2em}
+
+#root{height:100%}
