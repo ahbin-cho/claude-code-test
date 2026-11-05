@@ -3,14 +3,16 @@ import { Harbor } from "./components/Harbor";
 import { LanternDetail } from "./components/LanternDetail";
 import { LanternForm } from "./components/LanternForm";
 import { Sheet } from "./components/Sheet";
-import { useHarbor } from "./hooks/useHarbor";
+import { demo, useHarbor } from "./hooks/useHarbor";
 
 type View = { type: "none" } | { type: "detail"; id: string } | { type: "form" };
 
 export default function App() {
   const [view, setView] = useState<View>({ type: "none" });
   const [pulseId, setPulseId] = useState<string | null>(null);
-  const [hint, setHint] = useState("등불을 누르면 그 사람의 기다림을 볼 수 있어요.");
+  const [hint, setHint] = useState(
+    demo ? "체험 모드예요. 등불을 눌러보세요. 새로고침하면 처음으로 돌아가요." : "등불을 누르면 그 사람의 기다림을 볼 수 있어요.",
+  );
 
   const pulse = useCallback((id: string) => {
     setPulseId(null);

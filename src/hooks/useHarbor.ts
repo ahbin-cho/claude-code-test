@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { configured, supabase, type Lantern, type Warmth } from "../lib/supabase";
 import { today, ymd } from "../lib/waiting";
+import { DEMO_ME, demoLanterns, demoOnline, demoWarmth } from "../lib/demo";
+
+/** Supabase 설정이 없으면 체험 모드로 열려요. 아무것도 저장되지 않아요. */
+export const demo = !configured;
 
 export type Status = "loading" | "ready" | "error" | "unconfigured";
 
 export function useHarbor(onWarmed?: () => void) {
-  const [me, setMe] = useState<string | null>(null);
-  const [lanterns, setLanterns] = useState<Lantern[]>([]);
-  const [warmth, setWarmth] = useState<Warmth[]>([]);
-  const [online, setOnline] = useState<Set<string>>(new Set());
-  const [hereCount, setHereCount] = useState(1);
-  const [status, setStatus] = useState<Status>(configured ? "loading" : "unconfigured");
+  const [me, setMe] = useState<string | null>(demo ? DEMO_ME : null);
+  const [lanterns, setLanterns] = useState<Lantern[]>(demo ? demoLanterns : []);
+  const [warmth, setWarmth] = useState<Warmth[]>(demo ? demoWarmth : []);
+  const [online, setOnline] = useState<Set<string>>(demo ? demoOnline : () => new Set());
+  const [hereCount, setHereCount] = useState(demo ? 3 : 1);
+  const [status, setStatus] = useState<Status>(demo ? "ready" : "loading");
 
   // 1. 로그인: 회원가입 없이 익명으로 들어와요
   useEffect(() => {
@@ -96,6 +100,12 @@ export function useHarbor(onWarmed?: () => void) {
   const saveLantern = useCallback(
     async (v: Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line">) => {
       if (!me) throw new Error("no-user");
+      if (demo) {
+        const prev = lanterns.find((x) => x.user_id === me);
+        const row: Lantern = { user_id: me, created_at: prev?.created_at ?? new Date().toISOString(), ...v };
+        setLanterns((all) => [...all.filter((x) => x.user_id !== me), row]);
+        return;
+      }
       const { data, error } = await supabase
         .from("lanterns")
         .upsert({ user_id: me, ...v })
@@ -107,11 +117,12 @@ export function useHarbor(onWarmed?: () => void) {
         return [...rest, data as Lantern].sort((a, b) => a.created_at.localeCompare(b.created_at));
       });
     },
-    [me],
+    [me, lanterns],
   );
 
   const removeLantern = useCallback(async () => {
     if (!me) return;
+    if (demo) return setLanterns((prev) => prev.filter((x) => x.user_id !== me));
     const { error } = await supabase.from("lanterns").delete().eq("user_id", me);
     if (error) throw error;
     setLanterns((prev) => prev.filter((x) => x.user_id !== me));
@@ -121,11 +132,15 @@ export function useHarbor(onWarmed?: () => void) {
     async (to: string) => {
       if (!me || to === me) return;
       const row = { from_id: me, to_id: to, day: ymd(today()) };
+      if (demo) {
+        if (!warmth.some((w) => w.from_id === me && w.to_id === to && w.day === row.day)) setWarmth((prev) => [...prev, row]);
+        return;
+      }
       const { error } = await supabase.from("warmth").insert(row);
       // 23505 = 오늘 이미 보냄. 실패가 아니라 그냥 무시해요.
       if (error && error.code !== "23505") throw error;
     },
-    [me],
+    [me, warmth],
   );
 
   return { me, lanterns, online, hereCount, status, warmthCount, sentToday, saveLantern, removeLantern, sendWarmth };
