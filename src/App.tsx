@@ -1,10 +1,9 @@
 import { useCallback, useState } from "react";
-import { World, type Focus } from "./components/World";
+import { Village3D, type Focus } from "./components/Village3D";
 import { PLACES, placeOf } from "./lib/places";
 import { LanternDetail } from "./components/LanternDetail";
 import { LanternForm } from "./components/LanternForm";
 import { Sheet } from "./components/Sheet";
-import { Sky } from "./components/Sky";
 import { demo, useHarbor } from "./hooks/useHarbor";
 
 type View = { type: "none" } | { type: "detail"; id: string } | { type: "form" };
@@ -14,7 +13,7 @@ export default function App() {
   const [pulseId, setPulseId] = useState<string | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [hint, setHint] = useState(
-    demo ? "체험 모드예요. 불빛을 누르면 가까이 다가가요. 새로고침하면 처음으로 돌아가요." : "불빛을 누르면 가까이 다가가요. 끌어서 둘러볼 수도 있어요.",
+    demo ? "체험 모드예요. 끌어서 돌려보고, 불빛을 누르면 다가가요. 새로고침하면 처음으로 돌아가요." : "끌어서 돌려보고, 불빛을 누르면 가까이 다가가요.",
   );
 
   const pulse = useCallback((id: string) => {
@@ -40,8 +39,7 @@ export default function App() {
 
   return (
     <div className={`scene${view.type === "detail" ? " focusing" : ""}`}>
-      <Sky />
-      <World lanterns={h.lanterns} me={h.me} online={h.online} pulseId={pulseId} focus={focus} selectedId={view.type === "detail" ? view.id : null} onPick={(id) => setView({ type: "detail", id })} />
+      <Village3D lanterns={h.lanterns} me={h.me} online={h.online} pulseId={pulseId} focus={focus} selectedId={view.type === "detail" ? view.id : null} onPick={(id) => setView({ type: "detail", id })} />
 
       <header>
         <h1>기다림 항구</h1>

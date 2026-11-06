@@ -39,15 +39,6 @@ body{
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* 하늘 (화면에 고정, 지도를 움직여도 별은 제자리) */
-.sky{position:absolute;inset:0 0 25% 0;pointer-events:none}
-.sky canvas{position:absolute;inset:0;width:100%;height:100%}
-.moon{
-  position:absolute;top:9%;right:9%;width:40px;height:40px;border-radius:50%;
-  box-shadow:inset -10px 4px 0 0 var(--moon);transform:rotate(-18deg);opacity:.92;
-}
-.mist{display:none}
-
 /* 머리글: 지도 위에 얹혀요 */
 header{
   position:absolute;top:0;left:0;right:0;z-index:5;pointer-events:none;
@@ -65,87 +56,20 @@ h1{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;
 .place small{color:var(--faint);font-size:.75rem;margin-left:1px}
 .place:hover{text-decoration-color:var(--ink)}
 
-/* 지도 */
-.world{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
-.world:active{cursor:grabbing}
-.map{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-.map.glide{transition:transform .8s cubic-bezier(.3,.7,.2,1)}
-.map-far{pointer-events:none}
-/* 멀리서 볼 땐 불빛만, 가까이 가면 이름이 보여요 */
-.lantern .label{transition:opacity .4s ease}
-.map.is-far .lantern .label{opacity:0}
-.map.is-far .lantern .post,.map.is-far .lantern .cord{opacity:.5}
-/* 등불 하나를 열면 그 등불만 커지고 나머지는 물러나요 */
-.lantern>*{transition:opacity .5s ease}
-.map.has-focus .lantern:not(.focused)>*{opacity:.3}
-.lantern .lamp{transition:width .5s ease,height .5s ease}
-.lantern.focused .lamp{width:32px;height:40px}
-.lantern.focused .label{font-size:1rem}
-.land{position:absolute;left:0;top:0;display:block;overflow:visible}
-.land .far{fill:var(--land-far)}
-.land .ground,.land .trees{fill:var(--land)}
-.land .trees-back{fill:var(--tree-back)}
-.land .grass{fill:none;stroke:var(--land);stroke-width:2}
-.land .ripples line{stroke:var(--muted);stroke-width:1.2}
-.land .ripples{animation:drift 10s ease-in-out infinite alternate}
-.land .pilings{fill:var(--pier)}
-.land .deck{fill:var(--pier-top)}
-.land .boat{fill:var(--land);animation:bob 5s ease-in-out infinite}
-.land .tower{fill:var(--tower)}
-.land .tower-band{fill:var(--land)}
-.land .beacon{fill:var(--moon)}
-.land .beam{transform-origin:1850px 250px;animation:sweep 9s ease-in-out infinite alternate}
-.land .place-name{font-family:var(--hand);font-size:34px;fill:var(--muted);opacity:.55}
-
-.lantern{
-  position:absolute;width:62px;transform:translate(-50%,-100%);
-  background:none;border:0;padding:0;cursor:pointer;color:inherit;font:inherit;
-  display:flex;flex-direction:column;align-items:center;
-  animation:rise .9s ease-out both;animation-delay:calc(var(--i,0) * 120ms);
+/* 3D 마을 */
+.stage{position:absolute;inset:0;touch-action:none;cursor:grab}
+.stage:active{cursor:grabbing}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tags{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.tag{
+  position:absolute;left:0;top:0;opacity:0;text-align:center;white-space:nowrap;will-change:transform,opacity;
+  text-shadow:0 1px 6px rgba(0,0,0,.9);transition:opacity .2s linear;
 }
-.lantern:focus-visible{outline:1px dashed var(--ink);outline-offset:6px;border-radius:6px}
-.lantern .label{
-  font-family:var(--display);font-size:.86rem;line-height:1.3;text-align:center;
-  margin-bottom:6px;white-space:nowrap;max-width:62px;overflow:hidden;text-overflow:ellipsis;
-  text-shadow:0 1px 6px rgba(0,0,0,.8);
-}
-.lantern .dd{display:block;font-family:var(--body);font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.lantern .swing{display:flex;flex-direction:column;align-items:center;transform-origin:50% 0}
-.lantern .cord{width:1px;background:rgba(237,229,214,.35)}
-.lantern .lamp{
-  width:24px;height:30px;border-radius:50% / 46%;position:relative;
-  background:radial-gradient(circle at 50% 55%,var(--lamp-hot) 0%,var(--lamp) 45%,var(--lamp-deep) 100%);
-}
-.lantern .lamp::before,.lantern .lamp::after{content:"";position:absolute;left:5px;right:5px;height:3px;border-radius:1px;background:rgba(40,20,10,.6)}
-.lantern .lamp::before{top:-2px}
-.lantern .lamp::after{bottom:-2px}
-.lantern .post{width:2px;margin-top:3px;background:var(--pier)}
-.lantern.here .swing{animation:sway 4.2s ease-in-out infinite}
-.lantern.here .lamp{animation:flicker 2.8s ease-in-out infinite}
-.lantern.mine .label{font-family:var(--hand);font-size:1.25rem;line-height:1}
-.lantern.pulse .lamp{animation:pulse 1.2s ease-out}
-.lantern.home .lamp{background:radial-gradient(circle at 50% 55%,#FFF6DF 0%,var(--lamp-hot) 50%,var(--lamp) 100%)}
-.reflect{
-  position:absolute;width:22px;height:90px;transform:translateX(-50%);
-  border-radius:50%;filter:blur(8px);pointer-events:none;
-  background:linear-gradient(to bottom,var(--lamp),transparent);
-  animation:wobble 3.4s ease-in-out infinite;
-}
+.tag b{display:block;font-family:var(--display);font-weight:400;font-size:.86rem;line-height:1.3}
+.tag span{display:block;font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.tag.mine b{font-family:var(--hand);font-size:1.3rem;line-height:1}
 
 .empty{position:absolute;left:20px;right:20px;top:46%;z-index:4;text-align:center;color:var(--muted);font-size:.92rem;line-height:1.7;pointer-events:none}
-
-@keyframes rise{from{opacity:0;transform:translate(-50%,-92%)}to{opacity:1;transform:translate(-50%,-100%)}}
-@keyframes sway{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(2.5deg)}}
-@keyframes flicker{0%,100%{filter:brightness(1)}40%{filter:brightness(1.18)}55%{filter:brightness(.9)}70%{filter:brightness(1.08)}}
-@keyframes pulse{0%{transform:scale(1)}30%{transform:scale(1.4);filter:brightness(1.4)}100%{transform:scale(1)}}
-@keyframes wobble{0%,100%{transform:translateX(-50%) scaleX(1)}50%{transform:translateX(-50%) scaleX(1.5)}}
-@keyframes drift{from{transform:translateX(0)}to{transform:translateX(-24px)}}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
-@keyframes sweep{from{transform:rotate(-6deg);opacity:.6}to{transform:rotate(8deg);opacity:1}}
-@media (prefers-reduced-motion: reduce){
-  .lantern,.lantern .swing,.lantern .lamp,.reflect,.land .ripples,.land .boat,.land .beam{animation:none!important}
-  .map.glide{transition:none}
-}
 
 /* 아래 막대 */
 .bar{
@@ -202,3 +126,22 @@ textarea{resize:none;height:84px;line-height:1.3;font-family:var(--hand);font-si
 .place-blurb{margin-top:8px}
 .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .err{color:var(--danger);font-size:.85rem;margin-top:10px;min-height:1.2em}
+
+/* 등불 꾸미기 */
+.look{display:flex;gap:18px;align-items:center}
+.look-pick{display:flex;flex-direction:column;gap:8px;min-width:0}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{
+  width:30px;height:30px;border-radius:50%;cursor:pointer;padding:0;
+  background:var(--c);border:2px solid transparent;box-shadow:0 0 0 1px var(--line) inset;
+}
+.swatch[aria-checked="true"]{border-color:var(--ink);box-shadow:0 0 0 3px var(--paper) inset}
+.swatch:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.preview{
+  flex:none;width:54px;height:66px;position:relative;
+  background:radial-gradient(circle at 50% 55%,#fff8 0%,var(--c) 45%,color-mix(in srgb,var(--c) 70%,#000) 100%);
+  box-shadow:0 0 34px 6px color-mix(in srgb,var(--c) 45%,transparent);
+}
+.preview.shape-둥근{border-radius:50% / 46%}
+.preview.shape-네모{border-radius:4px;width:48px}
+.preview.shape-별{clip-path:polygon(50% 2%,61% 36%,98% 36%,68% 58%,79% 94%,50% 72%,21% 94%,32% 58%,2% 36%,39% 36%);box-shadow:none;width:66px}

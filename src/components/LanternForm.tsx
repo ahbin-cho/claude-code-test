@@ -2,8 +2,9 @@ import { useState } from "react";
 import type { Lantern } from "../lib/supabase";
 import { KINDS, parseDate, today, ymd } from "../lib/waiting";
 import { PLACES, PLACE_INFO, placeOf } from "../lib/places";
+import { COLORS, COLOR_NAMES, SHAPES, colorOf, shapeOf } from "../lib/looks";
 
-type Values = Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line" | "place">;
+type Values = Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line" | "place" | "color" | "shape">;
 
 export function LanternForm({ initial, onSave, onRemove, onClose }: {
   initial?: Lantern;
@@ -17,6 +18,8 @@ export function LanternForm({ initial, onSave, onRemove, onClose }: {
   const [end, setEnd] = useState(initial?.end_date ?? "");
   const [line, setLine] = useState(initial?.line ?? "");
   const [place, setPlace] = useState(placeOf(initial?.place));
+  const [color, setColor] = useState(colorOf(initial?.color));
+  const [shape, setShape] = useState(shapeOf(initial?.shape));
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -28,7 +31,7 @@ export function LanternForm({ initial, onSave, onRemove, onClose }: {
     setBusy(true);
     setErr("");
     try {
-      await onSave({ who: who.trim(), kind, start_date: start, end_date: end, line: line.trim(), place });
+      await onSave({ who: who.trim(), kind, start_date: start, end_date: end, line: line.trim(), place, color, shape });
       onClose();
     } catch {
       setErr("저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.");
@@ -60,6 +63,34 @@ export function LanternForm({ initial, onSave, onRemove, onClose }: {
         {KINDS.map((k) => (
           <button key={k} type="button" className="chip" aria-pressed={k === kind} onClick={() => setKind(k)}>{k}</button>
         ))}
+      </div>
+
+      <span className="label-text">어떤 등불인가요</span>
+      <div className="look">
+        <span className={`preview shape-${shape}`} style={{ ["--c" as string]: COLORS[color] }} aria-hidden="true" />
+        <div className="look-pick">
+          <div className="swatches" role="radiogroup" aria-label="불빛 색">
+            {COLOR_NAMES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={c === color}
+                aria-label={c}
+                title={c}
+                className="swatch"
+                style={{ ["--c" as string]: COLORS[c] }}
+                onClick={() => setColor(c)}
+              />
+            ))}
+          </div>
+          <div className="small">{color} 빛</div>
+          <div className="chips">
+            {SHAPES.map((s) => (
+              <button key={s} type="button" className="chip" aria-pressed={s === shape} onClick={() => setShape(s)}>{s} 등</button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <span className="label-text">어디에 걸까요</span>

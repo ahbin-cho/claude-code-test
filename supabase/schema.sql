@@ -20,6 +20,14 @@ alter table public.lanterns add column if not exists place text not null default
 alter table public.lanterns drop constraint if exists lanterns_place_check;
 alter table public.lanterns add constraint lanterns_place_check check (place in ('항구', '숲', '언덕', '등대'));
 
+-- 등불 꾸미기: 불빛 색과 등 모양
+alter table public.lanterns add column if not exists color text not null default '촛불';
+alter table public.lanterns add column if not exists shape text not null default '둥근';
+alter table public.lanterns drop constraint if exists lanterns_color_check;
+alter table public.lanterns add constraint lanterns_color_check check (color in ('촛불', '노을', '달빛', '벚꽃', '라벤더', '하늘', '새싹'));
+alter table public.lanterns drop constraint if exists lanterns_shape_check;
+alter table public.lanterns add constraint lanterns_shape_check check (shape in ('둥근', '네모', '별'));
+
 -- 온기: 한 사람이 한 등불에 하루 한 번
 create table if not exists public.warmth (
   from_id uuid not null default auth.uid() references auth.users(id) on delete cascade,

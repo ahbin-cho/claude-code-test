@@ -98,7 +98,7 @@ export function useHarbor(onWarmed?: () => void) {
   );
 
   const saveLantern = useCallback(
-    async (v: Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line" | "place">) => {
+    async (v: Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line" | "place" | "color" | "shape">) => {
       if (!me) throw new Error("no-user");
       if (demo) {
         const prev = lanterns.find((x) => x.user_id === me);
