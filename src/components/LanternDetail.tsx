@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Lantern } from "../lib/supabase";
 import { daysLeft, ddayText, progressOf, titleOf } from "../lib/waiting";
+import { placeOf } from "../lib/places";
 
 export function LanternDetail({ lantern, isMine, isHere, warmth, sent, onWarm, onEdit, onClose }: {
   lantern: Lantern;
@@ -33,14 +34,13 @@ export function LanternDetail({ lantern, isMine, isHere, warmth, sent, onWarm, o
     <>
       <h2 id="sheet-title">{titleOf(lantern)}</h2>
       <div className="kind">
-        {lantern.kind}
-        {isHere && ", 지금 항구에 있어요"}
+        {lantern.kind}, {placeOf(lantern.place)}에 걸려 있어요
+        {isHere && <span className="here-now">지금 여기 와 있어요</span>}
       </div>
       <div className="big">{ddayText(n)}</div>
-      <div className="prog"><i style={{ width: `${pct}%` }} /></div>
-      <div className="small">{n != null && n <= 0 ? "긴 기다림을 끝냈어요." : `기다림의 ${pct}%를 지나왔어요.`}</div>
-      {lantern.line && <blockquote>{lantern.line}</blockquote>}
-      <div className="small">받은 온기 {warmth}</div>
+      <div className="small">{n != null && n <= 0 ? "긴 기다림을 끝냈어요." : `${lantern.start_date.split("-").join(".")}부터, 기다림의 ${pct}%를 지나왔어요.`}</div>
+      {lantern.line && <p className="note-line">{lantern.line}</p>}
+      <div className="small">{warmth ? `온기를 ${warmth}번 받았어요.` : "아직 받은 온기가 없어요."}</div>
       <div className="err" role="alert">{err}</div>
       <div className="row">
         {isMine ? (

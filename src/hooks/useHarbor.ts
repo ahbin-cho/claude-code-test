@@ -13,7 +13,7 @@ export function useHarbor(onWarmed?: () => void) {
   const [lanterns, setLanterns] = useState<Lantern[]>(demo ? demoLanterns : []);
   const [warmth, setWarmth] = useState<Warmth[]>(demo ? demoWarmth : []);
   const [online, setOnline] = useState<Set<string>>(demo ? demoOnline : () => new Set());
-  const [hereCount, setHereCount] = useState(demo ? 3 : 1);
+  const [hereCount, setHereCount] = useState(demo ? 4 : 1);
   const [status, setStatus] = useState<Status>(demo ? "ready" : "loading");
 
   // 1. 로그인: 회원가입 없이 익명으로 들어와요
@@ -98,7 +98,7 @@ export function useHarbor(onWarmed?: () => void) {
   );
 
   const saveLantern = useCallback(
-    async (v: Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line">) => {
+    async (v: Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line" | "place">) => {
       if (!me) throw new Error("no-user");
       if (demo) {
         const prev = lanterns.find((x) => x.user_id === me);

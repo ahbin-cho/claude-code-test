@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { Lantern } from "../lib/supabase";
 import { KINDS, parseDate, today, ymd } from "../lib/waiting";
+import { PLACES, PLACE_INFO, placeOf } from "../lib/places";
 
-type Values = Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line">;
+type Values = Pick<Lantern, "who" | "kind" | "start_date" | "end_date" | "line" | "place">;
 
 export function LanternForm({ initial, onSave, onRemove, onClose }: {
   initial?: Lantern;
@@ -15,6 +16,7 @@ export function LanternForm({ initial, onSave, onRemove, onClose }: {
   const [start, setStart] = useState(initial?.start_date ?? ymd(today()));
   const [end, setEnd] = useState(initial?.end_date ?? "");
   const [line, setLine] = useState(initial?.line ?? "");
+  const [place, setPlace] = useState(placeOf(initial?.place));
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -26,7 +28,7 @@ export function LanternForm({ initial, onSave, onRemove, onClose }: {
     setBusy(true);
     setErr("");
     try {
-      await onSave({ who: who.trim(), kind, start_date: start, end_date: end, line: line.trim() });
+      await onSave({ who: who.trim(), kind, start_date: start, end_date: end, line: line.trim(), place });
       onClose();
     } catch {
       setErr("저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러주세요.");
@@ -59,6 +61,14 @@ export function LanternForm({ initial, onSave, onRemove, onClose }: {
           <button key={k} type="button" className="chip" aria-pressed={k === kind} onClick={() => setKind(k)}>{k}</button>
         ))}
       </div>
+
+      <span className="label-text">어디에 걸까요</span>
+      <div className="chips">
+        {PLACES.map((p) => (
+          <button key={p} type="button" className="chip" aria-pressed={p === place} onClick={() => setPlace(p)}>{p}</button>
+        ))}
+      </div>
+      <div className="small place-blurb">{PLACE_INFO[place].blurb}</div>
 
       <div className="two">
         <div>

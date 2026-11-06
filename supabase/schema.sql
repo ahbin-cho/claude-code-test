@@ -15,6 +15,11 @@ create table if not exists public.lanterns (
   check (end_date > start_date)
 );
 
+-- 등불을 걸어둔 장소 (나중에 추가된 칸이라 따로 더해요)
+alter table public.lanterns add column if not exists place text not null default '항구';
+alter table public.lanterns drop constraint if exists lanterns_place_check;
+alter table public.lanterns add constraint lanterns_place_check check (place in ('항구', '숲', '언덕', '등대'));
+
 -- 온기: 한 사람이 한 등불에 하루 한 번
 create table if not exists public.warmth (
   from_id uuid not null default auth.uid() references auth.users(id) on delete cascade,

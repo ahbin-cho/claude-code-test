@@ -16,6 +16,7 @@ export type Lantern = {
   start_date: string;
   end_date: string;
   line: string;
+  place: string;
   created_at: string;
 };
 

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { Harbor } from "./components/Harbor";
+import { World } from "./components/World";
+import { PLACES, placeOf, type Place } from "./lib/places";
 import { LanternDetail } from "./components/LanternDetail";
 import { LanternForm } from "./components/LanternForm";
 import { Sheet } from "./components/Sheet";
@@ -11,8 +12,9 @@ type View = { type: "none" } | { type: "detail"; id: string } | { type: "form" }
 export default function App() {
   const [view, setView] = useState<View>({ type: "none" });
   const [pulseId, setPulseId] = useState<string | null>(null);
+  const [focus, setFocus] = useState<{ place: Place; n: number } | null>(null);
   const [hint, setHint] = useState(
-    demo ? "체험 모드예요. 등불을 눌러보세요. 새로고침하면 처음으로 돌아가요." : "등불을 누르면 그 사람의 기다림을 볼 수 있어요.",
+    demo ? "체험 모드예요. 화면을 끌어서 둘러보세요. 새로고침하면 처음으로 돌아가요." : "화면을 끌어서 둘러보고, 등불을 눌러보세요.",
   );
 
   const pulse = useCallback((id: string) => {
@@ -39,17 +41,21 @@ export default function App() {
   return (
     <div className="scene">
       <Sky />
-      <header>
-        <p className="eyebrow">오늘 밤의 항구</p>
-        <h1>기다림 항구</h1>
-        <p className="lede">돌아올 사람을 기다리며 등불을 걸어두는 곳.<br />그날이 가까워질수록 불빛이 밝아져요.</p>
-        <div className="stats">
-          <span><span className="dot" />지금 항구에 <b>{h.hereCount}</b>명</span>
-          <span>걸린 등불 <b>{h.lanterns.length}</b>개</span>
-        </div>
-      </header>
+      <World lanterns={h.lanterns} me={h.me} online={h.online} pulseId={pulseId} focus={focus} onPick={(id) => setView({ type: "detail", id })} />
 
-      <Harbor lanterns={h.lanterns} me={h.me} online={h.online} pulseId={pulseId} empty={empty} onPick={(id) => setView({ type: "detail", id })} />
+      <header>
+        <h1>기다림 항구</h1>
+        <p className="lede">돌아올 사람을 기다리며 등불을 걸어두는 곳. 그날이 가까워질수록 불빛이 밝아져요.</p>
+        <p className="stats">오늘 밤 {h.hereCount}명이 와 있고, 등불 {h.lanterns.length}개가 걸려 있어요.</p>
+        <nav className="places" aria-label="장소로 이동">
+          {PLACES.map((p) => (
+            <button key={p} className="place" onClick={() => setFocus({ place: p, n: Date.now() })}>
+              {p} <small>{h.lanterns.filter((l) => placeOf(l.place) === p).length}</small>
+            </button>
+          ))}
+        </nav>
+      </header>
+      {h.status !== "ready" || !h.lanterns.length ? <p className="empty">{empty}</p> : null}
 
       <div className="bar">
         <span className="hint">{hint}</span>
