@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Lantern } from "../lib/supabase";
 import { COLORS, colorOf, shapeOf, type LampShape } from "../lib/looks";
-import { ISLANDS, PIER, PLACE_INFO, groundAt, placeOf, slotOf, type Place } from "../lib/places";
+import { ISLANDS, PIER, PLACE_INFO, fbm, groundAt, jitter, pierAt, placeOf, slotOf, type Place } from "../lib/places";
 import { daysLeft, ddayText, progressOf } from "../lib/waiting";
 
 // 장면 색. styles.css 의 :root 토큰과 같은 값이에요.
 const C = {
   skyTop: 0x05081a, skyLow: 0x2b2446, fog: 0x17142e,
-  sea: 0x0c1436, land: 0x161a36, landFar: 0x1c1a42, tree: 0x0c1430, tree2: 0x111a3a,
+  sea: 0x080f2a, land: 0x141833, landHigh: 0x252848, shore: 0x2a2440, landFar: 0x1c1a42, tree: 0x0b132d, tree2: 0x16203f, mist: 0x8a85b8,
   pier: 0x1c1726, tower: 0x1d2140, moon: 0xf4e6c6,
 };
 
@@ -32,6 +32,7 @@ type Item = {
   tag: HTMLDivElement;
   glowLevel: number;     // 0.3~1, 돌아올 날이 가까울수록 커요
   phase: number;
+  idx: number;
   look: string;          // 색+모양, 바뀌면 다시 만들어요
 };
 
@@ -123,6 +124,10 @@ export class Village {
   private down: { x: number; y: number; t: number } | null = null;
   private ro: ResizeObserver;
   private paused = false;
+  private waterTime = { value: 0 };
+  private mist: THREE.Sprite[] = [];
+  private lighthouse = new THREE.Vector3();
+  private lastTouch = performance.now();
 
   constructor(
     private host: HTMLElement,
@@ -153,7 +158,13 @@ export class Village {
     this.controls.maxDistance = 230;
     this.controls.maxPolarAngle = 1.42;
     this.controls.screenSpacePanning = false;
-    this.controls.addEventListener("start", () => (this.tween = null));
+    this.controls.addEventListener("start", () => {
+      this.tween = null;
+      this.controls.autoRotate = false;
+      this.lastTouch = performance.now();
+    });
+    this.controls.addEventListener("end", () => (this.lastTouch = performance.now()));
+    this.controls.autoRotateSpeed = -0.25;
 
     const el = this.renderer.domElement;
     el.addEventListener("pointerdown", this.onDown);
@@ -206,106 +217,173 @@ export class Village {
     this.scene.add(moon);
 
     this.scene.add(new THREE.HemisphereLight(0x5a60a8, 0x080a18, 1.3));
-    const moonLight = new THREE.DirectionalLight(0xbfc6ff, 1.1);
+    const moonLight = new THREE.DirectionalLight(0xbfc6ff, 0.7);
     moonLight.position.set(-70, 130, -420).normalize().multiplyScalar(100);
     this.scene.add(moonLight);
   }
 
   private buildLand() {
-    const landMat = new THREE.MeshStandardMaterial({ color: C.land, roughness: 1, flatShading: true });
+    const landMat = new THREE.MeshStandardMaterial({ color: C.land, roughness: 1 });
 
-    // 바다: 등불 빛이 비치도록 살짝 반들반들하게
-    const sea = new THREE.Mesh(
-      new THREE.PlaneGeometry(1400, 1400, 1, 1).rotateX(-Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.55, metalness: 0.3 }),
-    );
-    this.scene.add(sea);
+    // 바다: 천천히 일렁이는 물결 (셰이더에서 높이와 기울기를 함께 바꿔요)
+    const waterMat = new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.78, metalness: 0.05 });
+    waterMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = this.waterTime;
+      sh.vertexShader = "uniform float uTime;\n" + sh.vertexShader
+        .replace(
+          "#include <beginnormal_vertex>",
+          `float a1 = position.x*0.16 + uTime*0.8, a2 = position.z*0.21 - uTime*0.6, a3 = (position.x+position.z)*0.37 + uTime*1.2;
+           float dx = cos(a1)*0.16*0.14 + cos(a3)*0.37*0.05;
+           float dz = cos(a2)*0.21*0.11 + cos(a3)*0.37*0.05;
+           vec3 objectNormal = normalize(vec3(-dx, 1.0, -dz));`,
+        )
+        .replace(
+          "#include <begin_vertex>",
+          "vec3 transformed = position; transformed.y += sin(a1)*0.14 + sin(a2)*0.11 + sin(a3)*0.05;",
+        );
+    };
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(260, 200, 110, 85).rotateX(-Math.PI / 2), waterMat);
+    water.position.set(-2, 0, 0);
+    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: C.sea, roughness: 0.6, metalness: 0.1 }));
+    ocean.position.y = -0.7;
+    this.scene.add(water, ocean);
 
-    // 섬 세 개 (언덕, 숲, 등대 절벽)
-    for (const s of Object.values(ISLANDS)) {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(s.r, 40, 22, 0, Math.PI * 2, 0, Math.PI / 2), landMat);
-      m.position.set(s.x, s.cy, s.z);
-      this.scene.add(m);
+    // 땅: 섬 세 개를 하나의 높이 지도로. 해안선이 들쭉날쭉하고 작은 언덕들이 있어요.
+    const W = 150, D = 90;
+    const geo = new THREE.PlaneGeometry(W, D, 200, 120).rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    const colors: number[] = [];
+    const base = new THREE.Color(C.land), high = new THREE.Color(C.landHigh), shore = new THREE.Color(C.shore);
+    const tmp = new THREE.Color();
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i) - 4, z = pos.getZ(i) - 10;
+      const y = groundAt(x, z);
+      pos.setXYZ(i, x, Math.max(y, -3), z);
+      const k = THREE.MathUtils.clamp(y / 10, 0, 1);
+      tmp.copy(base).lerp(high, k * 0.6 + (fbm(x * 0.3, z * 0.3) - 0.5) * 0.25);
+      if (y < 0.5) tmp.lerp(shore, THREE.MathUtils.clamp(1 - (y + 0.3) / 0.8, 0, 1) * 0.6);
+      colors.push(tmp.r, tmp.g, tmp.b);
     }
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geo.computeVertexNormals();
+    this.scene.add(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
 
-    // 먼 산
-    const farMat = new THREE.MeshStandardMaterial({ color: C.landFar, roughness: 1, flatShading: true });
+    // 먼 산: 둥글게 눌린 언덕들
+    const farMat = new THREE.MeshStandardMaterial({ color: C.landFar, roughness: 1 });
     const rand = rng(11);
-    for (let i = 0; i < 16; i++) {
-      const h = 20 + rand() * 40;
-      const m = new THREE.Mesh(new THREE.ConeGeometry(30 + rand() * 40, h, 6), farMat);
-      m.position.set(-260 + i * 36 + rand() * 20, h / 2 - 2, -190 - rand() * 80);
+    for (let i = 0; i < 18; i++) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), farMat);
+      m.scale.set(30 + rand() * 50, 14 + rand() * 30, 20 + rand() * 30);
+      m.position.set(-300 + i * 36 + rand() * 24, -6, -200 - rand() * 90);
       m.rotation.y = rand() * 3;
       this.scene.add(m);
     }
 
-    // 소나무 숲 (언덕 뒤쪽에도 몇 그루)
-    const spots: [number, number, number][] = [];
+    // 소나무: 세 층, 조금씩 기울고 색과 크기가 달라요
     const trand = rng(3);
-    const isl = ISLANDS.숲;
-    for (let i = 0; i < 70; i++) {
-      const a = trand() * Math.PI * 2, r = Math.sqrt(trand()) * 14.5;
-      spots.push([isl.x + Math.cos(a) * r, isl.z + Math.sin(a) * r, 0.7 + trand() * 0.8]);
+    const spots: [number, number, number][] = [];
+    for (let n = 0; spots.length < 110 && n < 2000; n++) {
+      const pick = trand();
+      const c = pick < 0.72 ? ISLANDS.숲 : ISLANDS.언덕;
+      const a = trand() * Math.PI * 2, r = Math.sqrt(trand()) * c.r * 0.85;
+      const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
+      if (c === ISLANDS.언덕 && z > c.z - 2) continue; // 언덕 앞쪽은 비워서 등불이 보이게
+      if (groundAt(x, z) < 0.4) continue;
+      spots.push([x, z, 0.6 + trand() * 0.9]);
     }
-    for (let i = 0; i < 26; i++) {
-      const a = Math.PI + trand() * Math.PI, r = 10 + trand() * 12;
-      spots.push([ISLANDS.언덕.x + Math.cos(a) * r, ISLANDS.언덕.z + Math.sin(a) * r * 0.8, 0.6 + trand() * 0.6]);
-    }
-    const lower = new THREE.InstancedMesh(new THREE.ConeGeometry(1.25, 2.6, 7), new THREE.MeshStandardMaterial({ color: C.tree, roughness: 1, flatShading: true }), spots.length);
-    const upper = new THREE.InstancedMesh(new THREE.ConeGeometry(0.85, 2.2, 7), new THREE.MeshStandardMaterial({ color: C.tree2, roughness: 1, flatShading: true }), spots.length);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+    const tiers = [
+      { geo: new THREE.ConeGeometry(1.3, 2.4, 9), y: 1.2 },
+      { geo: new THREE.ConeGeometry(1.0, 2.1, 9), y: 2.5 },
+      { geo: new THREE.ConeGeometry(0.62, 1.8, 9), y: 3.6 },
+    ];
+    const treeMat = new THREE.MeshStandardMaterial({ roughness: 1 });
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12, 0.18, 1.4, 6).translate(0, 0.5, 0), landMat, spots.length);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler();
+    const cA = new THREE.Color(C.tree), cB = new THREE.Color(C.tree2);
+    const meshes = tiers.map((t) => new THREE.InstancedMesh(t.geo, treeMat, spots.length));
     spots.forEach(([x, z, s], i) => {
-      const y = groundAt(x, z);
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), i);
-      sc.setScalar(s);
-      lower.setMatrixAt(i, m4.compose(p.set(x, y + 1.3 * s, z), q, sc));
-      upper.setMatrixAt(i, m4.compose(p.set(x, y + 2.9 * s, z), q, sc));
+      const y = groundAt(x, z) - 0.1;
+      e.set((trand() - 0.5) * 0.12, trand() * 6, (trand() - 0.5) * 0.12);
+      q.setFromEuler(e);
+      sc.set(s * (0.85 + trand() * 0.3), s * (0.9 + trand() * 0.35), s * (0.85 + trand() * 0.3));
+      const col = cA.clone().lerp(cB, trand());
+      trunk.setMatrixAt(i, m4.compose(p.set(x, y, z), q, sc));
+      tiers.forEach((t, k) => {
+        // 기운 방향을 따라 층을 올려요
+        const up = new THREE.Vector3(0, t.y * sc.y, 0).applyQuaternion(q);
+        meshes[k].setMatrixAt(i, m4.compose(p.set(x + up.x, y + up.y, z + up.z), q, sc));
+        meshes[k].setColorAt(i, col);
+      });
     });
-    this.scene.add(lower, upper);
+    this.scene.add(trunk, ...meshes);
 
-    // 부두
-    const pierMat = new THREE.MeshStandardMaterial({ color: C.pier, roughness: 0.9 });
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(PIER.w, 0.22, PIER.len), pierMat);
-    deck.position.set(PIER.x, PIER.deck - 0.11, PIER.z0 + PIER.len / 2);
-    this.scene.add(deck);
-    const post = new THREE.CylinderGeometry(0.14, 0.14, 2.4, 6);
-    for (let z = PIER.z0 + 1; z < PIER.z0 + PIER.len; z += 3.2) {
-      for (const sx of [-1, 1]) {
-        const m = new THREE.Mesh(post, pierMat);
-        m.position.set(PIER.x + sx * (PIER.w / 2 - 0.1), -0.3, z);
-        this.scene.add(m);
-      }
+    // 부두: 휘어진 길을 따라 널빤지를 하나씩. 높이와 기울기가 조금씩 달라요.
+    const prand = rng(5);
+    const plankN = Math.round(PIER.len / 0.55);
+    const planks = new THREE.InstancedMesh(new THREE.BoxGeometry(PIER.w, 0.1, 0.48), new THREE.MeshStandardMaterial({ color: C.pier, roughness: 0.95 }), plankN);
+    for (let i = 0; i < plankN; i++) {
+      const at = pierAt(i / plankN);
+      e.set((prand() - 0.5) * 0.05, at.yaw + (prand() - 0.5) * 0.05, (prand() - 0.5) * 0.06);
+      planks.setMatrixAt(i, m4.compose(p.set(at.x, at.deck - 0.05 + (prand() - 0.5) * 0.04, at.z), q.setFromEuler(e), sc.set(1 - prand() * 0.08, 1, 1)));
     }
+    const postN = Math.round(PIER.len / 3) * 2;
+    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.11, 0.14, 1, 6).translate(0, -0.5, 0), new THREE.MeshStandardMaterial({ color: C.pier, roughness: 1 }), postN);
+    for (let i = 0; i < postN; i++) {
+      const at = pierAt(Math.floor(i / 2) / (postN / 2) + 0.02);
+      const side = (i % 2 ? 1 : -1) * (PIER.w / 2 - 0.05);
+      e.set((prand() - 0.5) * 0.14, 0, (prand() - 0.5) * 0.14);
+      posts.setMatrixAt(i, m4.compose(p.set(at.x + Math.cos(at.yaw) * side, at.deck + 0.25 + prand() * 0.2, at.z - Math.sin(at.yaw) * side), q.setFromEuler(e), sc.set(1, 2.6, 1)));
+    }
+    this.scene.add(planks, posts);
 
     // 작은 배
     const boat = new THREE.Group();
-    const hull = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.45, 3.4, 8, 1, false, 0, Math.PI).rotateZ(Math.PI / 2).rotateY(Math.PI / 2), landMat);
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3, 5).translate(0, 1.6, 0), landMat);
+    const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(0.8, 0.5, 2), landMat);
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 3, 5).translate(0, 1.5, 0), landMat);
+    mast.rotation.z = 0.06;
     boat.add(hull, mast);
-    boat.position.set(PIER.x + 5, 0.15, PIER.z0 + PIER.len - 6);
+    const end = pierAt(0.85);
+    boat.position.set(end.x + 4.2, 0.1, end.z);
+    boat.rotation.y = 0.4;
     this.boat = boat;
     this.scene.add(boat);
 
-    // 등대
-    const top = groundAt(ISLANDS.등대.x, ISLANDS.등대.z);
-    const towerMat = new THREE.MeshStandardMaterial({ color: C.tower, roughness: 0.8, flatShading: true });
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.25, 7.5, 12).translate(0, 3.75, 0), towerMat);
-    tower.position.set(ISLANDS.등대.x, top - 0.2, ISLANDS.등대.z);
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(1.06, 1.12, 0.8, 12).translate(0, 3, 0), landMat);
-    band.position.copy(tower.position);
-    const room = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.9, 10).translate(0, 7.95, 0), new THREE.MeshBasicMaterial({ color: C.moon }));
-    room.position.copy(tower.position);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.95, 1, 10).translate(0, 8.9, 0), towerMat);
-    roof.position.copy(tower.position);
-    this.scene.add(tower, band, room, roof);
-    // 등대 불빛: 은은한 달빛색 번짐만
+    // 등대: 섬에서 가장 높은 곳에, 아주 조금 기울어서
+    let best: { x: number; z: number; y: number } = { x: ISLANDS.등대.x, z: ISLANDS.등대.z, y: -9 };
+    for (let dx = -6; dx <= 6; dx++) for (let dz = -6; dz <= 6; dz++) {
+      const x = ISLANDS.등대.x + dx, z = ISLANDS.등대.z + dz, y = groundAt(x, z);
+      if (y > best.y) best = { x, z, y };
+    }
+    this.lighthouse.set(best.x, best.y, best.z);
+    const towerMat = new THREE.MeshStandardMaterial({ color: C.tower, roughness: 0.85 });
+    const lh = new THREE.Group();
+    lh.position.set(best.x, best.y - 0.3, best.z);
+    lh.rotation.set(0.02, 0, -0.025);
+    lh.add(
+      new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.3, 7.5, 16).translate(0, 3.75, 0), towerMat),
+      new THREE.Mesh(new THREE.CylinderGeometry(1.06, 1.13, 0.8, 16).translate(0, 3, 0), landMat),
+      new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.9, 12).translate(0, 7.95, 0), new THREE.MeshBasicMaterial({ color: C.moon })),
+      new THREE.Mesh(new THREE.ConeGeometry(0.95, 1, 12).translate(0, 8.9, 0), towerMat),
+    );
+    this.scene.add(lh);
     const pivot = new THREE.Group();
-    pivot.position.set(ISLANDS.등대.x, top + 7.75, ISLANDS.등대.z);
+    pivot.position.set(best.x, best.y + 7.6, best.z);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTex, color: C.moon, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }));
     halo.scale.setScalar(5);
     pivot.add(halo);
     this.beam = pivot;
     this.scene.add(pivot);
+
+    // 물 위를 흘러가는 옅은 안개
+    const mrand = rng(23);
+    for (let i = 0; i < 9; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTex, color: C.mist, transparent: true, opacity: 0.025 + mrand() * 0.025, depthWrite: false }));
+      s.scale.set(40 + mrand() * 30, 6 + mrand() * 4, 1);
+      s.position.set(-70 + mrand() * 130, 1.5 + mrand() * 2, -20 + mrand() * 40);
+      s.userData.speed = 0.4 + mrand() * 0.5;
+      this.mist.push(s);
+      this.scene.add(s);
+    }
   }
 
   // ---------- 등불 ----------
@@ -338,9 +416,13 @@ export class Village {
     // 자리
     const [x, z] = slotOf(place, i);
     const info = PLACE_INFO[place];
-    const ground = place === "항구" ? PIER.deck : Math.max(0.2, groundAt(x, z));
+    const pierU = (0.1 + i * 0.05);
+    const ground = place === "항구" ? pierAt(pierU).deck : Math.max(0.2, groundAt(x, z));
+    it.idx = i;
     it.group.position.set(x, ground, z);
-    it.swing.position.y = info.hang ? 2.6 : 1.45;
+    // 기둥은 조금씩 기울고, 높이도 조금씩 달라요
+    it.group.rotation.set(jitter(i + place.length * 31, 4) * 0.07, 0, jitter(i + place.length * 31, 5) * 0.07);
+    it.swing.position.y = (info.hang ? 2.6 : 1.45) + jitter(i + place.length * 31, 6) * (info.hang ? 0.5 : 0.15);
     it.lamp.set(x, ground + it.swing.position.y * LAMP_SCALE, z);
 
     // 밝기: 돌아올 날이 가까울수록
@@ -403,7 +485,7 @@ export class Village {
 
     const it: Item = {
       id: l.user_id, data: l, place, group, swing, body, mat, glow, hit,
-      lamp: new THREE.Vector3(), tag, glowLevel: 0.5, phase: Math.random() * 10, look,
+      lamp: new THREE.Vector3(), tag, glowLevel: 0.5, phase: Math.random() * 10, idx: 0, look,
     };
     this.items.set(l.user_id, it);
     return it;
@@ -437,6 +519,7 @@ export class Village {
       return;
     }
     this.tween = { from: [this.camera.position.clone(), this.controls.target.clone()], to: [pos, target], t0: performance.now(), dur };
+    this.lastTouch = performance.now() + dur;
   }
 
   /** 바다 쪽 비스듬한 곳에서 마을 전체를 내려다봐요 */
@@ -452,7 +535,7 @@ export class Village {
 
   focusPlace(place: Place) {
     const c = PLACE_INFO[place];
-    const y = place === "항구" ? PIER.deck : Math.max(0, groundAt(c.x, c.z));
+    const y = place === "항구" ? pierAt(0.3).deck : Math.max(0, groundAt(c.x, c.z));
     const target = new THREE.Vector3(c.x, y + 2.2, c.z);
     // 실제로 걸린 등불들의 가운데를 봐요
     const here = [...this.items.values()].filter((i) => i.place === place);
@@ -531,6 +614,9 @@ export class Village {
       const k = Math.min(1, (now - this.tween.t0) / this.tween.dur);
       const e = ease(k);
       this.camera.position.lerpVectors(this.tween.from[0], this.tween.to[0], e);
+      // 직선이 아니라 살짝 떠올랐다 내려오는 곡선으로 날아가요
+      const lift = this.tween.from[0].distanceTo(this.tween.to[0]) * 0.16;
+      this.camera.position.y += Math.sin(Math.PI * e) * lift;
       this.controls.target.lerpVectors(this.tween.from[1], this.tween.to[1], e);
       if (k >= 1) this.tween = null;
     }
@@ -541,7 +627,14 @@ export class Village {
     tg.y = THREE.MathUtils.clamp(tg.y, -2, 14);
     this.controls.update();
 
+    // 가만히 두면 아주 천천히 둘러봐요
+    this.controls.autoRotate = !calm && !this.tween && !this.selected && now - this.lastTouch > 7000;
     if (!calm) {
+      this.waterTime.value = t;
+      for (const m of this.mist) {
+        m.position.x += m.userData.speed * 0.016;
+        if (m.position.x > 80) m.position.x = -90;
+      }
       (this.stars.material as THREE.PointsMaterial).opacity = 0.75 + 0.15 * Math.sin(t * 0.7);
       (this.beam.children[0] as THREE.Sprite).material.opacity = 0.45 + 0.2 * Math.sin(t * 0.8);
       this.boat.position.y = 0.15 + Math.sin(t * 1.1) * 0.06;
@@ -557,6 +650,10 @@ export class Village {
         it.swing.rotation.z = Math.sin(t * 1.4 + it.phase) * 0.09;
         it.swing.rotation.x = Math.sin(t * 1.1 + it.phase * 2) * 0.05;
         flick = 1 + 0.12 * Math.sin(t * 7 + it.phase) + 0.06 * Math.sin(t * 13 + it.phase);
+      } else if (!calm) {
+        // 접속하지 않은 등불도 바람에 아주 조금 흔들려요
+        it.swing.rotation.z = Math.sin(t * 0.8 + it.phase) * 0.03;
+        it.swing.rotation.x = Math.sin(t * 0.6 + it.phase * 1.7) * 0.02;
       } else {
         it.swing.rotation.set(0, 0, 0);
       }
