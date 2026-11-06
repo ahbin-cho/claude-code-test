@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { World } from "./components/World";
-import { PLACES, placeOf, type Place } from "./lib/places";
+import { World, type Focus } from "./components/World";
+import { PLACES, placeOf } from "./lib/places";
 import { LanternDetail } from "./components/LanternDetail";
 import { LanternForm } from "./components/LanternForm";
 import { Sheet } from "./components/Sheet";
@@ -12,9 +12,9 @@ type View = { type: "none" } | { type: "detail"; id: string } | { type: "form" }
 export default function App() {
   const [view, setView] = useState<View>({ type: "none" });
   const [pulseId, setPulseId] = useState<string | null>(null);
-  const [focus, setFocus] = useState<{ place: Place; n: number } | null>(null);
+  const [focus, setFocus] = useState<Focus | null>(null);
   const [hint, setHint] = useState(
-    demo ? "체험 모드예요. 화면을 끌어서 둘러보세요. 새로고침하면 처음으로 돌아가요." : "화면을 끌어서 둘러보고, 등불을 눌러보세요.",
+    demo ? "체험 모드예요. 불빛을 누르면 가까이 다가가요. 새로고침하면 처음으로 돌아가요." : "불빛을 누르면 가까이 다가가요. 끌어서 둘러볼 수도 있어요.",
   );
 
   const pulse = useCallback((id: string) => {
@@ -39,15 +39,16 @@ export default function App() {
     : "아직 걸린 등불이 없어요. 첫 등불을 걸어보세요.";
 
   return (
-    <div className="scene">
+    <div className={`scene${view.type === "detail" ? " focusing" : ""}`}>
       <Sky />
-      <World lanterns={h.lanterns} me={h.me} online={h.online} pulseId={pulseId} focus={focus} onPick={(id) => setView({ type: "detail", id })} />
+      <World lanterns={h.lanterns} me={h.me} online={h.online} pulseId={pulseId} focus={focus} selectedId={view.type === "detail" ? view.id : null} onPick={(id) => setView({ type: "detail", id })} />
 
       <header>
         <h1>기다림 항구</h1>
         <p className="lede">돌아올 사람을 기다리며 등불을 걸어두는 곳. 그날이 가까워질수록 불빛이 밝아져요.</p>
         <p className="stats">오늘 밤 {h.hereCount}명이 와 있고, 등불 {h.lanterns.length}개가 걸려 있어요.</p>
         <nav className="places" aria-label="장소로 이동">
+          <button className="place" onClick={() => setFocus({ place: "all", n: Date.now() })}>전체</button>
           {PLACES.map((p) => (
             <button key={p} className="place" onClick={() => setFocus({ place: p, n: Date.now() })}>
               {p} <small>{h.lanterns.filter((l) => placeOf(l.place) === p).length}</small>

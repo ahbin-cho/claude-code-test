@@ -69,8 +69,19 @@ h1{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;
 .world{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 .world:active{cursor:grabbing}
 .map{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
-.map.glide{transition:transform .7s cubic-bezier(.3,.7,.2,1)}
-.land{position:absolute;left:0;top:0;display:block}
+.map.glide{transition:transform .8s cubic-bezier(.3,.7,.2,1)}
+.map-far{pointer-events:none}
+/* 멀리서 볼 땐 불빛만, 가까이 가면 이름이 보여요 */
+.lantern .label{transition:opacity .4s ease}
+.map.is-far .lantern .label{opacity:0}
+.map.is-far .lantern .post,.map.is-far .lantern .cord{opacity:.5}
+/* 등불 하나를 열면 그 등불만 커지고 나머지는 물러나요 */
+.lantern>*{transition:opacity .5s ease}
+.map.has-focus .lantern:not(.focused)>*{opacity:.3}
+.lantern .lamp{transition:width .5s ease,height .5s ease}
+.lantern.focused .lamp{width:32px;height:40px}
+.lantern.focused .label{font-size:1rem}
+.land{position:absolute;left:0;top:0;display:block;overflow:visible}
 .land .far{fill:var(--land-far)}
 .land .ground,.land .trees{fill:var(--land)}
 .land .trees-back{fill:var(--tree-back)}
@@ -154,7 +165,9 @@ h1{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;
 .btn:focus-visible,.ghost:focus-visible,.chip:focus-visible,.place:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 /* 바텀시트 */
-.veil{position:fixed;inset:0;background:rgba(2,4,14,.6);display:none;z-index:20}
+.veil{position:fixed;inset:0;background:rgba(2,4,14,.25);display:none;z-index:20}
+.scene header,.scene .bar,.scene .empty{transition:opacity .4s ease}
+.scene.focusing header,.scene.focusing .bar{opacity:0;pointer-events:none}
 .veil.open{display:block}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:21;max-height:88%;overflow:auto;
