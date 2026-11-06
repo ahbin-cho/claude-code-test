@@ -49,3 +49,16 @@ export function ddayText(n: number | null) {
   if (n === 0) return "오늘 돌아와요";
   return "다시 만났어요";
 }
+
+/** 받침에 따라 조사를 골라요. 예: pick("지수", "은", "는") → "지수는" */
+export function pick(word: string, withBatchim: string, without: string) {
+  const c = word.charCodeAt(word.length - 1);
+  const has = c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 !== 0;
+  return word + (has ? withBatchim : without);
+}
+
+/** 기다리기 시작한 날부터 오늘까지 며칠째인지 */
+export function daysSince(l: Lantern) {
+  const s = parseDate(l.start_date);
+  return s ? Math.max(1, Math.round((today().getTime() - s.getTime()) / DAY) + 1) : null;
+}

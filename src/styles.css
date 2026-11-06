@@ -10,9 +10,9 @@
   --ink:#EDE5D6; --muted:#9499BA; --faint:#5F6588;
   --paper:#0F1329; --line:rgba(237,229,214,.14); --field:rgba(237,229,214,.04);
   --danger:#FF9C86;
-  --display:"Gowun Batang","Nanum Myeongjo",serif;
-  --body:"Gowun Dodum","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
-  --hand:"Nanum Pen Script","Gowun Dodum",cursive;
+  --display:"Gaegu","Nanum Pen Script","Apple SD Gothic Neo",sans-serif; /* 등대지기의 글씨: 제목, 이야기, 질문 */
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --hand:"Nanum Pen Script","Gaegu",cursive; /* 사람들이 직접 쓴 한 줄 */
   color-scheme: dark;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
@@ -45,8 +45,9 @@ header{
   padding:22px max(20px,env(safe-area-inset-right,0px)) 28px max(20px,env(safe-area-inset-left,0px));
   background:linear-gradient(to bottom,rgba(5,8,26,.85),rgba(5,8,26,0));
 }
-h1{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;margin:0}
-.lede{margin:6px 0 0;color:var(--muted);line-height:1.6;font-size:.86rem;max-width:21em}
+h1{font-family:var(--display);font-weight:700;font-size:2rem;line-height:1.1;margin:0;letter-spacing:-.06em}
+.title-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.title-row .text-btn{pointer-events:auto}
 .stats{margin:8px 0 0;font-size:.8rem;color:var(--faint)}
 .places{display:flex;gap:4px 18px;flex-wrap:wrap;margin-top:12px;pointer-events:auto}
 .place{
@@ -65,7 +66,7 @@ h1{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;
   position:absolute;left:0;top:0;opacity:0;text-align:center;white-space:nowrap;will-change:transform,opacity;
   text-shadow:0 1px 6px rgba(0,0,0,.9);transition:opacity .2s linear;
 }
-.tag b{display:block;font-family:var(--display);font-weight:400;font-size:.86rem;line-height:1.3}
+.tag b{display:block;font-family:var(--display);font-weight:700;font-size:1.05rem;line-height:1.15}
 .tag span{display:block;font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .tag.mine b{font-family:var(--hand);font-size:1.3rem;line-height:1}
 
@@ -102,10 +103,10 @@ h1{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.2;
 }
 .sheet.open{transform:none}
 @media (prefers-reduced-motion: reduce){.sheet{transition:none}}
-.sheet h2{font-family:var(--display);font-weight:700;font-size:1.4rem;margin:0 0 6px;line-height:1.35;text-wrap:balance}
+.sheet h2{font-family:var(--display);font-weight:700;font-size:1.7rem;margin:0 0 6px;line-height:1.25;text-wrap:balance;white-space:pre-line}
 .sheet .kind{color:var(--muted);font-size:.85rem;line-height:1.6}
 .here-now{display:block;color:var(--ink)}
-.big{font-family:var(--display);font-weight:700;font-size:2.4rem;line-height:1;margin:20px 0 8px;font-variant-numeric:tabular-nums}
+.big{font-family:var(--display);font-weight:700;font-size:3rem;line-height:1;margin:18px 0 6px}
 .small{font-size:.85rem;color:var(--muted);line-height:1.65}
 .note-line{
   margin:20px 0;padding:2px 2px 0;font-family:var(--hand);font-size:1.7rem;line-height:38px;color:var(--ink);
@@ -145,3 +146,45 @@ textarea{resize:none;height:84px;line-height:1.3;font-family:var(--hand);font-si
 .preview.shape-둥근{border-radius:50% / 46%}
 .preview.shape-네모{border-radius:4px;width:48px}
 .preview.shape-별{clip-path:polygon(50% 2%,61% 36%,98% 36%,68% 58%,79% 94%,50% 72%,21% 94%,32% 58%,2% 36%,39% 36%);box-shadow:none;width:66px}
+
+/* 작은 글자 버튼 */
+.text-btn{font:inherit;font-size:.82rem;background:none;border:0;padding:6px 0;color:var(--muted);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px}
+.text-btn:hover{color:var(--ink)}
+.text-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* 등불 상세 */
+.where{margin:0 0 4px;font-size:.82rem;color:var(--muted)}
+.here-now{margin:2px 0 0;font-size:.85rem;color:var(--ink)}
+
+/* 등대지기의 이야기 */
+.story{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;justify-content:flex-end;cursor:pointer;
+  background:linear-gradient(to top,rgba(3,6,26,.92) 0%,rgba(3,6,26,.6) 32%,rgba(3,6,26,0) 60%)}
+.story-skip{position:absolute;top:max(16px,env(safe-area-inset-top,0px));right:max(20px,env(safe-area-inset-right,0px));
+  font:inherit;font-size:.82rem;background:none;border:0;color:var(--muted);padding:8px 0;cursor:pointer}
+.story-card{padding:0 max(24px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px));max-width:560px}
+.story-text{font-family:var(--display);font-size:1.45rem;line-height:1.55;margin:0;white-space:pre-line;animation:storyIn .9s ease both}
+.story-more{margin:14px 0 0;font-size:.78rem;color:var(--faint)}
+.story-dots{display:flex;gap:6px;list-style:none;padding:0;margin:18px 0 0}
+.story-dots li{width:5px;height:5px;border-radius:50%;background:var(--line)}
+.story-dots li.on{background:var(--ink)}
+@keyframes storyIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.story-text{animation:none}}
+
+/* 한 번에 하나씩 묻는 등불 걸기 */
+.steps{display:flex;gap:5px;list-style:none;padding:0;margin:0 0 18px}
+.steps li{flex:1;height:3px;border-radius:2px;background:var(--line)}
+.steps li.done{background:var(--muted)}
+.steps li.on{background:var(--ink)}
+.sheet h2.ask{font-size:1.75rem;margin-bottom:6px}
+.answer{margin-top:18px;min-height:120px}
+.choices{display:flex;flex-direction:column;gap:8px}
+.choice{font:inherit;text-align:left;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:13px 14px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.choice b{font-weight:500}
+.choice span{font-size:.82rem;color:var(--muted)}
+.choice[aria-pressed="true"]{border-color:var(--ink);background:var(--field)}
+.choice:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.answer input#who{font-family:var(--hand);font-size:1.8rem;padding:8px 12px}
+.answer textarea{height:110px}
+
+/* Gaegu 는 글자 사이가 넓어서 조금 좁혀요 */
+.sheet h2,.big,.story-text,.tag b,.ask{letter-spacing:-.04em}

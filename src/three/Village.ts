@@ -4,6 +4,7 @@ import type { Lantern } from "../lib/supabase";
 import { COLORS, colorOf, shapeOf, type LampShape } from "../lib/looks";
 import { ISLANDS, PIER, PLACE_INFO, fbm, groundAt, jitter, pierAt, placeOf, slotOf, type Place } from "../lib/places";
 import { daysLeft, ddayText, progressOf } from "../lib/waiting";
+import type { Shot } from "../lib/story";
 
 // 장면 색. styles.css 의 :root 토큰과 같은 값이에요.
 const C = {
@@ -33,6 +34,8 @@ type Item = {
   glowLevel: number;     // 0.3~1, 돌아올 날이 가까울수록 커요
   phase: number;
   idx: number;
+  baseY: number;         // 기둥 위 등 높이
+  lift: number;          // 돌아온 사람의 등불이 하늘로 올라간 높이
   look: string;          // 색+모양, 바뀌면 다시 만들어요
 };
 
@@ -422,12 +425,14 @@ export class Village {
     it.group.position.set(x, ground, z);
     // 기둥은 조금씩 기울고, 높이도 조금씩 달라요
     it.group.rotation.set(jitter(i + place.length * 31, 4) * 0.07, 0, jitter(i + place.length * 31, 5) * 0.07);
-    it.swing.position.y = (info.hang ? 2.6 : 1.45) + jitter(i + place.length * 31, 6) * (info.hang ? 0.5 : 0.15);
-    it.lamp.set(x, ground + it.swing.position.y * LAMP_SCALE, z);
+    it.baseY = (info.hang ? 2.6 : 1.45) + jitter(i + place.length * 31, 6) * (info.hang ? 0.5 : 0.15);
 
-    // 밝기: 돌아올 날이 가까울수록
+    // 밝기: 돌아올 날이 가까울수록. 그날이 지나면 기둥을 떠나 하늘로 올라가요.
     const n = daysLeft(l);
     it.glowLevel = n != null && n <= 0 ? 1 : 0.3 + 0.7 * progressOf(l);
+    it.lift = n != null && n < 0 ? Math.min(6, 1.5 + -n * 0.8) : 0;
+    it.swing.position.y = it.baseY + it.lift;
+    it.lamp.set(x, ground + it.swing.position.y * LAMP_SCALE, z);
 
     // 이름표
     it.tag.className = `tag${l.user_id === this.me ? " mine" : ""}`;
@@ -485,7 +490,7 @@ export class Village {
 
     const it: Item = {
       id: l.user_id, data: l, place, group, swing, body, mat, glow, hit,
-      lamp: new THREE.Vector3(), tag, glowLevel: 0.5, phase: Math.random() * 10, idx: 0, look,
+      lamp: new THREE.Vector3(), tag, glowLevel: 0.5, phase: Math.random() * 10, idx: 0, baseY: 1.45, lift: 0, look,
     };
     this.items.set(l.user_id, it);
     return it;
@@ -564,6 +569,23 @@ export class Village {
     } else if (was) {
       const it = this.items.get(was);
       if (it) this.focusPlace(it.place);
+    }
+  }
+
+  /** 이야기 장면마다 카메라가 천천히 그곳으로 가요 */
+  shot(name: Shot) {
+    const slow = 2800;
+    if (name === "overview") return this.overview();
+    if (name === "forest") return this.focusPlace("숲");
+    if (name === "hill") return this.focusPlace("언덕");
+    if (name === "lighthouse") {
+      const top = this.lighthouse.clone().add(new THREE.Vector3(0, 5.5, 0));
+      return this.flyTo(top.clone().add(new THREE.Vector3(-12, 1.5, 17).multiplyScalar(this.narrow ? 1.3 : 1)), top, slow);
+    }
+    if (name === "harbor") {
+      const end = pierAt(0.9), near = pierAt(0.25);
+      const target = new THREE.Vector3(near.x, near.deck + 1.6, near.z);
+      return this.flyTo(new THREE.Vector3(end.x + 6, 3.2, end.z + 9), target, slow);
     }
   }
 
@@ -658,6 +680,8 @@ export class Village {
         it.swing.rotation.set(0, 0, 0);
       }
       if (!calm) it.body.rotation.y = t * 0.25 + it.phase;
+      // 하늘로 올라간 등불은 천천히 오르내려요
+      if (it.lift > 0) it.swing.position.y = it.baseY + it.lift + (calm ? 0 : Math.sin(t * 0.6 + it.phase) * 0.25);
 
       const dim = focus && focus !== it.id ? 0.25 : 1;
       it.mat.emissiveIntensity = (0.35 + 1.5 * it.glowLevel) * flick * dim * (home ? 1.2 : 1);

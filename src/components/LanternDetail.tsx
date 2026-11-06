@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Lantern } from "../lib/supabase";
-import { daysLeft, ddayText, progressOf, titleOf } from "../lib/waiting";
+import { daysLeft, daysSince, ddayText, pick, titleOf } from "../lib/waiting";
 import { placeOf } from "../lib/places";
 
 export function LanternDetail({ lantern, isMine, isHere, warmth, sent, onWarm, onEdit, onClose }: {
@@ -16,7 +16,8 @@ export function LanternDetail({ lantern, isMine, isHere, warmth, sent, onWarm, o
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const n = daysLeft(lantern);
-  const pct = Math.round(progressOf(lantern) * 100);
+  const since = daysSince(lantern);
+  const who = lantern.who.trim() || "그 사람";
 
   async function warm() {
     setBusy(true);
@@ -24,27 +25,32 @@ export function LanternDetail({ lantern, isMine, isHere, warmth, sent, onWarm, o
     try {
       await onWarm();
     } catch {
-      setErr("온기를 보내지 못했어요. 잠시 뒤 다시 눌러주세요.");
+      setErr("온기를 보내지 못했어요. 잠시 뒤 다시 눌러 주세요.");
     } finally {
       setBusy(false);
     }
   }
 
+  const story =
+    n == null ? ""
+    : n > 0 ? `기다린 지 ${since}일째예요. ${n}일 남았어요.`
+    : n === 0 ? `오늘 ${pick(who, "이", "가")} 돌아와요.`
+    : "다시 만났어요. 등불은 하늘로 올라가는 중이에요.";
+
   return (
     <>
+      <p className="where">{placeOf(lantern.place)}에 걸린 등불 · {lantern.kind}</p>
       <h2 id="sheet-title">{titleOf(lantern)}</h2>
-      <div className="kind">
-        {lantern.kind}, {placeOf(lantern.place)}에 걸려 있어요
-        {isHere && <span className="here-now">지금 여기 와 있어요</span>}
-      </div>
+      {isMine && <p className="here-now">당신의 등불이에요.</p>}
+      {isHere && !isMine && <p className="here-now">이 사람도 지금 항구에 와 있어요.</p>}
       <div className="big">{ddayText(n)}</div>
-      <div className="small">{n != null && n <= 0 ? "긴 기다림을 끝냈어요." : `${lantern.start_date.split("-").join(".")}부터, 기다림의 ${pct}%를 지나왔어요.`}</div>
+      <p className="small">{story}</p>
       {lantern.line && <p className="note-line">{lantern.line}</p>}
-      <div className="small">{warmth ? `온기를 ${warmth}번 받았어요.` : "아직 받은 온기가 없어요."}</div>
+      <p className="small">{warmth ? `이 등불에 온기가 ${warmth}번 닿았어요.` : "아직 닿은 온기가 없어요."}</p>
       <div className="err" role="alert">{err}</div>
       <div className="row">
         {isMine ? (
-          <button className="btn" onClick={onEdit}>한 줄 고치기</button>
+          <button className="btn" onClick={onEdit}>오늘의 한 줄 남기기</button>
         ) : (
           <button className="btn" onClick={warm} disabled={busy || sent}>
             {sent ? "오늘 온기를 보냈어요" : "온기 보내기"}
